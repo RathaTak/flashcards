@@ -1,1 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Flashcards Anglais</title>
 
+<link rel="manifest" href="manifest.json">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+body{
+margin:0;
+font-family:Segoe UI,Arial;
+background:linear-gradient(135deg,#667eea,#764ba2);
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+color:white;
+}
+
+.app{
+background:#ffffff15;
+padding:30px;
+border-radius:20px;
+text-align:center;
+backdrop-filter:blur(10px);
+width:360px;
+box-shadow:0 10px 30px rgba(0,0,0,.3);
+}
+
+.card{
+background:white;
+color:black;
+min-height:160px;
+border-radius:15px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:24px;
+margin:20px 0;
+cursor:pointer;
+transition:.3s;
+padding:15px;
+}
+
+.card:hover{transform:scale(1.03);}
+
+button{
+border:none;
+border-radius:10px;
+padding:10px 15px;
+margin:5px;
+cursor:pointer;
+font-size:15px;
+}
+
+.primary{background:#667eea;color:white;}
+.secondary{background:#eee;}
+
+.counter{margin-top:10px;font-size:14px;}
+
+.example{
+font-size:14px;
+margin-top:10px;
+opacity:.9;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<h2>Flashcards Anglais / Français</h2>
+
+<input type="file" id="upload"><br>
+
+<div class="card" onclick="flip()">
+<span id="text">Charge ton Excel</span>
+</div>
+
+<div>
+<button class="secondary" onclick="prev()">⬅</button>
+<button class="primary" onclick="speak()">🔊</button>
+<button class="secondary" onclick="next()">➡</button>
+</div>
+
+<div>
+<button class="primary" onclick="toggleRandom()">🔀 Aléatoire</button>
+<button class="secondary" onclick="toggleReverse()">🔄 Inverser</button>
+<button class="secondary" onclick="exampleOnline()">💬 Exemple</button>
+</div>
+
+<div class="example" id="example"></div>
+<div class="counter" id="counter"></div>
+
+</div>
+
+<script>
+
+let cards=[];
+let i=parseInt(localStorage.getItem("index"))||0;
+let front=true;
+let random=localStorage.getItem("random")==="true";
+let reversed=localStorage.getItem("reversed")==="true";
+
+document.getElementById("upload").addEventListener("change",e=>{
+let reader=new FileReader();
+reader.onload=e=>{
+let data=new Uint8Array(e.target.result);
+let wb=XLSX.read(data,{type:"array"});
+let sh=wb.Sheets[wb.SheetNames[0]];
+cards=XLSX.utils.sheet_to_json(sh,{header:1}).filter(r=>r.length>=2);
+if(i>=cards.length) i=0;
+show();
+};
+reader.readAsArrayBuffer(e.target.files[0]);
+});
+
+function save(){
+localStorage.setItem("index",i);
+localStorage.setItem("random",random);
+localStorage.setItem("reversed",reversed);
+}
+
+function frontText(){ return reversed?cards[i][1]:cards[i][0]; }
+function backText(){ return reversed?cards[i][0]:cards[i][1]; }
+
+function show(){
+document.getElementById("text").innerText=frontText();
+document.getElementById("example").innerText="";
+front=true;
+updateCounter();
+autoSpeak();
+save();
+}
+
+function flip(){
+front=!front;
+document.getElementById("text").innerText=front?frontText():backText();
+}
+
+function next(){
+if(random){
+i=Math.floor(Math.random()*cards.length);
+}else{
+i=(i+1)%cards.length;
+}
+show();
+}
+
+function prev(){
+i=(i-1+cards.length)%cards.length;
+show();
+}
+
+function toggleRandom(){
+random=!random;
+save();
+}
+
+function toggleReverse(){
+reversed=!reversed;
+show();
+save();
+}
+
+function speak(){
+let u=new SpeechSynthesisUtterance(frontText());
+u.lang=reversed?"fr-FR":"en-US";
+speechSynthesis.speak(u);
+}
+
+function autoSpeak(){
+setTimeout(speak,200);
+}
+
+function updateCounter(){
+document.getElementById("counter").innerText=(i+1)+" / "+cards.length;
+}
+
+/* Exemple réel via Internet */
+async function exampleOnline(){
+
+if(!navigator.onLine) return;
+
+let word = cards[i][0].toLowerCase();
+
+try{
+let r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+let j = await r.json();
+
+for(let m of j[0].meanings){
+for(let d of m.definitions){
+if(d.example){
+
+let sentence=d.example;
+
+document.getElementById("example").innerText=sentence;
+
+let u=new SpeechSynthesisUtterance(sentence);
+u.lang="en-US";
+speechSynthesis.speak(u);
+
+return;
+}
+}
+}
+}catch(e){}
+}
+
+/* Service Worker */
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("service-worker.js");
+}
+
+</script>
+
+</body>
+</html>
