@@ -158,8 +158,20 @@ let r=new FileReader();
 r.onload=e=>{
 let d=new Uint8Array(e.target.result);
 let wb=XLSX.read(d,{type:"array"});
-let sh=wb.Sheets[wb.SheetNames[0]];
-cards=XLSX.utils.sheet_to_json(sh,{header:1}).filter(r=>r.length>=2);
+
+cards=[];
+
+wb.SheetNames.forEach(name=>{
+let sh=wb.Sheets[name];
+let rows=XLSX.utils.sheet_to_json(sh,{header:1});
+rows.forEach(row=>{
+if(row.length>=2 && row[0] && row[1]){
+cards.push([row[0],row[1]]);
+}
+});
+});
+
+if(i>=cards.length)i=0;
 show();
 };
 r.readAsArrayBuffer(e.target.files[0]);
