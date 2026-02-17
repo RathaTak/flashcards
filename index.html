@@ -41,6 +41,25 @@ h2{text-align:center;font-weight:500;opacity:.8}
 
 input{width:100%;margin:10px 0;}
 
+.sheetBar{
+display:flex;
+gap:8px;
+overflow-x:auto;
+margin:10px 0;
+}
+
+.sheetBtn{
+white-space:nowrap;
+padding:8px 12px;
+border-radius:12px;
+background:#ffffff20;
+font-size:13px;
+}
+
+.sheetBtn.active{
+background:var(--main);
+}
+
 .card{
 background:var(--card);
 color:#111;
@@ -93,9 +112,7 @@ background:var(--main)!important;
 .example{margin-top:12px;font-size:14px;opacity:.8;min-height:40px;}
 .counter{text-align:center;margin-top:8px;font-size:13px;opacity:.6;}
 
-.fade{
-animation:fade .25s;
-}
+.fade{animation:fade .25s;}
 
 @keyframes fade{
 from{opacity:0;transform:scale(.95)}
@@ -112,6 +129,8 @@ to{opacity:1;transform:scale(1)}
 <h2>Flashcards</h2>
 
 <input type="file" id="upload">
+
+<div id="sheetBar" class="sheetBar"></div>
 
 <div id="card" class="card">
 <div id="text" class="word">Charge ton Excel</div>
@@ -137,50 +156,62 @@ to{opacity:1;transform:scale(1)}
 
 <script>
 
+let workbook;
 let cards=[];
-let i=parseInt(localStorage.getItem("index"))||0;
-let random=localStorage.getItem("random")==="true";
-let reversed=localStorage.getItem("reversed")==="true";
+let i=0;
+let random=false;
+let reversed=false;
 let front=true;
 
+const sheetBar=document.getElementById("sheetBar");
 const card=document.getElementById("card");
 const text=document.getElementById("text");
-const trans=document.getElementById("translation");
 const counter=document.getElementById("counter");
 const example=document.getElementById("example");
 const randomBtn=document.getElementById("randomBtn");
 const reverseBtn=document.getElementById("reverseBtn");
 
-updateButtons();
-
 upload.addEventListener("change",e=>{
 let r=new FileReader();
 r.onload=e=>{
 let d=new Uint8Array(e.target.result);
-let wb=XLSX.read(d,{type:"array"});
-
-cards=[];
-
-wb.SheetNames.forEach(name=>{
-let sh=wb.Sheets[name];
-let rows=XLSX.utils.sheet_to_json(sh,{header:1});
-rows.forEach(row=>{
-if(row.length>=2 && row[0] && row[1]){
-cards.push([row[0],row[1]]);
-}
-});
-});
-
-if(i>=cards.length)i=0;
-show();
+workbook=XLSX.read(d,{type:"array"});
+renderSheets();
+loadSheet(workbook.SheetNames[0]);
 };
 r.readAsArrayBuffer(e.target.files[0]);
 });
 
-function save(){
-localStorage.setItem("index",i);
-localStorage.setItem("random",random);
-localStorage.setItem("reversed",reversed);
+function renderSheets(){
+sheetBar.innerHTML="";
+workbook.SheetNames.forEach((name,idx)=>{
+let b=document.createElement("button");
+b.className="sheetBtn";
+b.innerText=name;
+b.onclick=()=>loadSheet(name);
+if(idx===0)b.classList.add("active");
+sheetBar.appendChild(b);
+});
+}
+
+function loadSheet(name){
+
+document.querySelectorAll(".sheetBtn").forEach(b=>{
+b.classList.toggle("active",b.innerText===name);
+});
+
+let sh=workbook.Sheets[name];
+let rows=XLSX.utils.sheet_to_json(sh,{header:1});
+
+cards=[];
+rows.forEach(r=>{
+if(r.length>=2 && r[0] && r[1]){
+cards.push([r[0],r[1]]);
+}
+});
+
+i=0;
+show();
 }
 
 function frontText(){return reversed?cards[i][1]:cards[i][0];}
@@ -189,24 +220,14 @@ function backText(){return reversed?cards[i][0]:cards[i][1];}
 function show(){
 card.classList.add("fade");
 setTimeout(()=>card.classList.remove("fade"),200);
-
 text.innerText=frontText();
 text.className="word";
-trans.innerText="";
 example.innerText="";
-front=true;
 counter.innerText=(i+1)+" / "+cards.length;
 autoSpeak();
-save();
 }
 
-function flip(){
-front=!front;
-text.innerText=front?frontText():backText();
-text.className=front?"word":"";
-}
-
-card.onclick=flip;
+card.onclick=()=>{text.innerText=text.innerText===frontText()?backText():frontText();};
 
 function next(){
 i=random?Math.floor(Math.random()*cards.length):(i+1)%cards.length;
@@ -220,20 +241,13 @@ show();
 
 function toggleRandom(){
 random=!random;
-updateButtons();
-save();
+randomBtn.classList.toggle("active",random);
 }
 
 function toggleReverse(){
 reversed=!reversed;
-updateButtons();
-show();
-save();
-}
-
-function updateButtons(){
-randomBtn.classList.toggle("active",random);
 reverseBtn.classList.toggle("active",reversed);
+show();
 }
 
 function speak(){
@@ -246,11 +260,7 @@ function autoSpeak(){setTimeout(speak,150);}
 
 /* Swipe */
 let startX=0;
-
-card.addEventListener("touchstart",e=>{
-startX=e.touches[0].clientX;
-});
-
+card.addEventListener("touchstart",e=>startX=e.touches[0].clientX);
 card.addEventListener("touchend",e=>{
 let dx=e.changedTouches[0].clientX-startX;
 if(dx>60) prev();
@@ -260,12 +270,10 @@ if(dx<-60) next();
 /* Exemple réel */
 async function exampleOnline(){
 if(!navigator.onLine)return;
-
 let w=cards[i][0].toLowerCase();
 try{
 let r=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w}`);
 let j=await r.json();
-
 for(let m of j[0].meanings){
 for(let d of m.definitions){
 if(d.example){
