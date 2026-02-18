@@ -13,11 +13,7 @@
 
 :root{
 --main:#6c63ff;
---bg:#0f1222;
---card:#ffffff;
 }
-
-*{box-sizing:border-box}
 
 body{
 margin:0;
@@ -28,96 +24,71 @@ display:flex;
 justify-content:center;
 align-items:center;
 color:white;
-overflow:hidden;
 }
 
-.app{
-width:100%;
-max-width:420px;
-padding:20px;
-}
+.app{width:100%;max-width:420px;padding:20px}
 
-h2{text-align:center;font-weight:500;opacity:.8}
-
-input{width:100%;margin:10px 0;}
+input{width:100%;margin:10px 0}
 
 .sheetBar{
 display:flex;
 gap:8px;
 overflow-x:auto;
-margin:10px 0;
+margin-bottom:10px;
 }
 
 .sheetBtn{
-white-space:nowrap;
 padding:8px 12px;
 border-radius:12px;
 background:#ffffff20;
+color:white;
+border:none;
 font-size:13px;
 }
 
-.sheetBtn.active{
-background:var(--main);
-}
+.sheetBtn.active{background:var(--main)}
 
 .card{
-background:var(--card);
-color:#111;
+background:white;
 border-radius:22px;
+padding:25px;
+text-align:center;
 min-height:180px;
 display:flex;
 flex-direction:column;
 justify-content:center;
-align-items:center;
-padding:20px;
 font-size:30px;
 font-weight:600;
+color:#111;
 box-shadow:0 15px 40px rgba(0,0,0,.4);
-transition:.25s ease;
-touch-action:none;
 }
 
-.word{color:var(--main);}
-.translation{font-size:22px;font-weight:400;margin-top:10px;}
+.word{color:var(--main)}
+.translation{font-size:22px;font-weight:400;margin-top:8px}
 
-.controls{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:12px;
-margin-top:15px;
-}
-
-.row{
+.controls,.row{
 display:grid;
 grid-template-columns:repeat(3,1fr);
 gap:10px;
-margin-top:10px;
+margin-top:12px;
 }
 
 button{
 border:none;
 border-radius:14px;
 padding:14px;
-font-size:18px;
 background:#ffffff20;
 color:white;
+font-size:18px;
 }
 
-button:active{transform:scale(.95)}
+.active{background:var(--main)!important}
 
-.active{
-background:var(--main)!important;
-}
+.example{margin-top:10px;font-size:14px;opacity:.8;min-height:40px}
+.counter{text-align:center;margin-top:6px;font-size:13px;opacity:.6}
 
-.example{margin-top:12px;font-size:14px;opacity:.8;min-height:40px;}
-.counter{text-align:center;margin-top:8px;font-size:13px;opacity:.6;}
-
-.fade{animation:fade .25s;}
-
-@keyframes fade{
-from{opacity:0;transform:scale(.95)}
-to{opacity:1;transform:scale(1)}
-}
+.fade{animation:fade .2s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
 
 </style>
 </head>
@@ -126,15 +97,13 @@ to{opacity:1;transform:scale(1)}
 
 <div class="app">
 
-<h2>Flashcards</h2>
-
 <input type="file" id="upload">
 
 <div id="sheetBar" class="sheetBar"></div>
 
 <div id="card" class="card">
-<div id="text" class="word">Charge ton Excel</div>
-<div id="translation" class="translation"></div>
+<div id="front" class="word">Charge ton Excel</div>
+<div id="back" class="translation"></div>
 </div>
 
 <div class="controls">
@@ -146,7 +115,7 @@ to{opacity:1;transform:scale(1)}
 <div class="row">
 <button id="randomBtn" onclick="toggleRandom()">🔀</button>
 <button id="reverseBtn" onclick="toggleReverse()">🔄</button>
-<button onclick="exampleOnline()">💬</button>
+<button onclick="showExample()">💬</button>
 </div>
 
 <div id="example" class="example"></div>
@@ -164,70 +133,63 @@ let reversed=false;
 let front=true;
 
 const sheetBar=document.getElementById("sheetBar");
-const card=document.getElementById("card");
-const text=document.getElementById("text");
+const frontDiv=document.getElementById("front");
+const backDiv=document.getElementById("back");
+const exampleDiv=document.getElementById("example");
 const counter=document.getElementById("counter");
-const example=document.getElementById("example");
 const randomBtn=document.getElementById("randomBtn");
 const reverseBtn=document.getElementById("reverseBtn");
 
-upload.addEventListener("change",e=>{
+upload.onchange=e=>{
 let r=new FileReader();
 r.onload=e=>{
-let d=new Uint8Array(e.target.result);
-workbook=XLSX.read(d,{type:"array"});
+workbook=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
 renderSheets();
 loadSheet(workbook.SheetNames[0]);
 };
-r.readAsArrayBuffer(e.target.files[0]);
-});
+r.readAsArrayBuffer(upload.files[0]);
+};
 
 function renderSheets(){
 sheetBar.innerHTML="";
-workbook.SheetNames.forEach((name,idx)=>{
+workbook.SheetNames.forEach((n,idx)=>{
 let b=document.createElement("button");
-b.className="sheetBtn";
-b.innerText=name;
-b.onclick=()=>loadSheet(name);
-if(idx===0)b.classList.add("active");
+b.className="sheetBtn"+(idx==0?" active":"");
+b.innerText=n;
+b.onclick=()=>loadSheet(n);
 sheetBar.appendChild(b);
 });
 }
 
 function loadSheet(name){
-
 document.querySelectorAll(".sheetBtn").forEach(b=>{
 b.classList.toggle("active",b.innerText===name);
 });
 
-let sh=workbook.Sheets[name];
-let rows=XLSX.utils.sheet_to_json(sh,{header:1});
+let rows=XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1});
 
 cards=[];
 rows.forEach(r=>{
-if(r.length>=2 && r[0] && r[1]){
-cards.push([r[0],r[1]]);
-}
+if(r[0]&&r[1]) cards.push([r[0],r[1],r[2]||""]);
 });
 
 i=0;
 show();
 }
 
-function frontText(){return reversed?cards[i][1]:cards[i][0];}
-function backText(){return reversed?cards[i][0]:cards[i][1];}
-
 function show(){
-card.classList.add("fade");
-setTimeout(()=>card.classList.remove("fade"),200);
-text.innerText=frontText();
-text.className="word";
-example.innerText="";
+front=true;
+frontDiv.innerText=reversed?cards[i][1]:cards[i][0];
+backDiv.innerText="";
+exampleDiv.innerText="";
 counter.innerText=(i+1)+" / "+cards.length;
 autoSpeak();
 }
 
-card.onclick=()=>{text.innerText=text.innerText===frontText()?backText():frontText();};
+card.onclick=()=>{
+front=!front;
+frontDiv.innerText=front?(reversed?cards[i][1]:cards[i][0]):(reversed?cards[i][0]:cards[i][1]);
+};
 
 function next(){
 i=random?Math.floor(Math.random()*cards.length):(i+1)%cards.length;
@@ -251,44 +213,32 @@ show();
 }
 
 function speak(){
-let u=new SpeechSynthesisUtterance(frontText());
+let u=new SpeechSynthesisUtterance(frontDiv.innerText);
 u.lang=reversed?"fr-FR":"en-US";
 speechSynthesis.speak(u);
 }
 
-function autoSpeak(){setTimeout(speak,150);}
+function autoSpeak(){setTimeout(speak,120)}
 
-/* Swipe */
-let startX=0;
-card.addEventListener("touchstart",e=>startX=e.touches[0].clientX);
-card.addEventListener("touchend",e=>{
-let dx=e.changedTouches[0].clientX-startX;
-if(dx>60) prev();
-if(dx<-60) next();
-});
-
-/* Exemple réel */
-async function exampleOnline(){
-if(!navigator.onLine)return;
-let w=cards[i][0].toLowerCase();
-try{
-let r=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w}`);
-let j=await r.json();
-for(let m of j[0].meanings){
-for(let d of m.definitions){
-if(d.example){
-example.innerText=d.example;
-let u=new SpeechSynthesisUtterance(d.example);
+function showExample(){
+exampleDiv.innerText=cards[i][2];
+if(cards[i][2]){
+let u=new SpeechSynthesisUtterance(cards[i][2]);
 u.lang="en-US";
 speechSynthesis.speak(u);
-return;
 }
-}
-}
-}catch(e){}
 }
 
-if("serviceWorker" in navigator){
+/* swipe */
+let x=0;
+card.addEventListener("touchstart",e=>x=e.touches[0].clientX);
+card.addEventListener("touchend",e=>{
+let d=e.changedTouches[0].clientX-x;
+if(d>60)prev();
+if(d<-60)next();
+});
+
+if("serviceWorker"in navigator){
 navigator.serviceWorker.register("service-worker.js");
 }
 
