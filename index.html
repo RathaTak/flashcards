@@ -324,25 +324,18 @@ XLSX.utils.book_append_sheet(wb,ws,name);
 
 });
 
-let wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
 
-let blob=new Blob([wbout],{
-type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+// ⭐ VERSION IPHONE SAFE
+let wbout=XLSX.write(wb,{
+bookType:'xlsx',
+type:'base64'
 });
 
-let url=URL.createObjectURL(blob);
+let link =
+"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + wbout;
 
-// ✅ placement en bas
-const zone=document.getElementById("downloadZone");
-zone.innerHTML="";
-
-let a=document.createElement("a");
-a.href=url;
-a.download="flashcards_appris.xlsx";
-a.innerText="⬇️ Télécharger le fichier";
-a.className="downloadLink";
-
-zone.appendChild(a);
+// ouverture directe Safari
+window.open(link);
 }
 
 </script>
