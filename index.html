@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
 <title>Flashcards</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -52,7 +51,6 @@ color:#111;
 }
 
 .word{color:var(--main)}
-.translation{font-size:22px;margin-top:8px}
 
 .controls,.row{
 display:grid;
@@ -70,10 +68,39 @@ color:white;
 font-size:18px;
 }
 
-.favorite{background:gold;color:black}
+.favorite{
+background:gold;
+color:black;
+}
 
-.example{margin-top:10px;font-size:14px;opacity:.8;min-height:40px}
-.counter{text-align:center;margin-top:6px;font-size:13px;opacity:.6}
+.example{
+margin-top:10px;
+font-size:14px;
+opacity:.8;
+min-height:40px;
+}
+
+.counter{
+text-align:center;
+margin-top:6px;
+font-size:13px;
+opacity:.6;
+}
+
+#downloadZone{
+margin-top:20px;
+text-align:center;
+}
+
+.downloadLink{
+display:inline-block;
+padding:14px 20px;
+border-radius:14px;
+background:#6c63ff;
+color:white;
+text-decoration:none;
+font-weight:600;
+}
 
 </style>
 </head>
@@ -88,7 +115,6 @@ font-size:18px;
 
 <div id="card" class="card">
 <div id="front" class="word">Charge ton Excel</div>
-<div id="back" class="translation"></div>
 </div>
 
 <div class="controls">
@@ -107,6 +133,7 @@ font-size:18px;
 
 <div id="example" class="example"></div>
 <div id="counter" class="counter"></div>
+<div id="downloadZone"></div>
 
 </div>
 
@@ -117,14 +144,17 @@ let cards=[];
 let learned={};
 
 let currentSheet="";
-let i=0,random=false,reversed=false,front=true;
+let i=0;
+let random=false;
+let reversed=false;
+let front=true;
 
 const frontDiv=document.getElementById("front");
-const backDiv=document.getElementById("back");
 const exampleDiv=document.getElementById("example");
 const counter=document.getElementById("counter");
 const favBtn=document.getElementById("favBtn");
 const sheetBar=document.getElementById("sheetBar");
+const card=document.getElementById("card");
 
 upload.onchange=e=>{
 let reader=new FileReader();
@@ -143,7 +173,7 @@ sheetBar.innerHTML="";
 
 workbook.SheetNames.forEach((name,index)=>{
 let b=document.createElement("button");
-b.className="sheetBtn"+(index==0?" active":"");
+b.className="sheetBtn"+(index===0?" active":"");
 b.innerText=name;
 b.onclick=()=>loadSheet(name);
 sheetBar.appendChild(b);
@@ -153,6 +183,7 @@ sheetBar.appendChild(b);
 function loadSheet(name){
 
 currentSheet=name;
+learned={};   // ✅ RESET TOTAL DES FAVORIS
 
 document.querySelectorAll(".sheetBtn")
 .forEach(b=>b.classList.toggle("active",b.innerText===name));
@@ -166,7 +197,9 @@ cards=[];
 
 let header=rows[0]||[];
 
-let apprisIndex=header.findIndex(h=>String(h).toLowerCase()=="appris");
+let apprisIndex=header.findIndex(
+h=>String(h).trim().toLowerCase()==="appris"
+);
 
 rows.forEach((r,index)=>{
 
@@ -181,8 +214,12 @@ ex:r[2]||"",
 row:index
 });
 
-if(apprisIndex>=0 && r[apprisIndex]=="X"){
+// ⭐ ACTIVE UNIQUEMENT SI X
+if(apprisIndex>=0){
+let value=String(r[apprisIndex]||"").trim();
+if(value==="X"){
 learned[name+"_"+index]=true;
+}
 }
 
 }
@@ -197,8 +234,9 @@ function show(){
 
 front=true;
 
-frontDiv.innerText=reversed?cards[i].fr:cards[i].en;
-backDiv.innerText="";
+frontDiv.innerText=
+reversed?cards[i].fr:cards[i].en;
+
 exampleDiv.innerText="";
 
 updateFavButton();
@@ -286,7 +324,25 @@ XLSX.utils.book_append_sheet(wb,ws,name);
 
 });
 
-XLSX.writeFile(wb,"flashcards_appris.xlsx");
+let wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+
+let blob=new Blob([wbout],{
+type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+});
+
+let url=URL.createObjectURL(blob);
+
+// ✅ placement en bas
+const zone=document.getElementById("downloadZone");
+zone.innerHTML="";
+
+let a=document.createElement("a");
+a.href=url;
+a.download="flashcards_appris.xlsx";
+a.innerText="⬇️ Télécharger le fichier";
+a.className="downloadLink";
+
+zone.appendChild(a);
 }
 
 </script>
