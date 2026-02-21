@@ -1,23 +1,21 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
 <title>Flashcards</title>
 
-<link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <style>
 
-:root{
---main:#6c63ff;
-}
+:root{--main:#6c63ff}
 
 body{
 margin:0;
-font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
+font-family:-apple-system,BlinkMacSystemFont,Segoe UI;
 background:linear-gradient(160deg,#0f1222,#1c1f3a);
 height:100vh;
 display:flex;
@@ -28,22 +26,14 @@ color:white;
 
 .app{width:100%;max-width:420px;padding:20px}
 
-input{width:100%;margin:10px 0}
-
-.sheetBar{
-display:flex;
-gap:8px;
-overflow-x:auto;
-margin-bottom:10px;
-}
+.sheetBar{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px}
 
 .sheetBtn{
 padding:8px 12px;
 border-radius:12px;
 background:#ffffff20;
-color:white;
 border:none;
-font-size:13px;
+color:white;
 }
 
 .sheetBtn.active{background:var(--main)}
@@ -58,17 +48,15 @@ display:flex;
 flex-direction:column;
 justify-content:center;
 font-size:30px;
-font-weight:600;
 color:#111;
-box-shadow:0 15px 40px rgba(0,0,0,.4);
 }
 
 .word{color:var(--main)}
-.translation{font-size:22px;font-weight:400;margin-top:8px}
+.translation{font-size:22px;margin-top:8px}
 
 .controls,.row{
 display:grid;
-grid-template-columns:repeat(3,1fr);
+grid-template-columns:repeat(4,1fr);
 gap:10px;
 margin-top:12px;
 }
@@ -82,13 +70,10 @@ color:white;
 font-size:18px;
 }
 
-.active{background:var(--main)!important}
+.favorite{background:gold;color:black}
 
 .example{margin-top:10px;font-size:14px;opacity:.8;min-height:40px}
 .counter{text-align:center;margin-top:6px;font-size:13px;opacity:.6}
-
-.fade{animation:fade .2s}
-@keyframes fade{from{opacity:0}to{opacity:1}}
 
 </style>
 </head>
@@ -110,12 +95,14 @@ font-size:18px;
 <button onclick="prev()">⬅</button>
 <button onclick="speak()">🔊</button>
 <button onclick="next()">➡</button>
+<button id="favBtn" onclick="toggleFavorite()">⭐</button>
 </div>
 
 <div class="row">
-<button id="randomBtn" onclick="toggleRandom()">🔀</button>
-<button id="reverseBtn" onclick="toggleReverse()">🔄</button>
+<button onclick="toggleRandom()">🔀</button>
+<button onclick="toggleReverse()">🔄</button>
 <button onclick="showExample()">💬</button>
+<button onclick="exportExcel()">💾</button>
 </div>
 
 <div id="example" class="example"></div>
@@ -127,50 +114,79 @@ font-size:18px;
 
 let workbook;
 let cards=[];
-let i=0;
-let random=false;
-let reversed=false;
-let front=true;
+let learned={};
 
-const sheetBar=document.getElementById("sheetBar");
+let currentSheet="";
+let i=0,random=false,reversed=false,front=true;
+
 const frontDiv=document.getElementById("front");
 const backDiv=document.getElementById("back");
 const exampleDiv=document.getElementById("example");
 const counter=document.getElementById("counter");
-const randomBtn=document.getElementById("randomBtn");
-const reverseBtn=document.getElementById("reverseBtn");
+const favBtn=document.getElementById("favBtn");
+const sheetBar=document.getElementById("sheetBar");
 
 upload.onchange=e=>{
-let r=new FileReader();
-r.onload=e=>{
+let reader=new FileReader();
+
+reader.onload=e=>{
 workbook=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
 renderSheets();
 loadSheet(workbook.SheetNames[0]);
 };
-r.readAsArrayBuffer(upload.files[0]);
+
+reader.readAsArrayBuffer(upload.files[0]);
 };
 
 function renderSheets(){
 sheetBar.innerHTML="";
-workbook.SheetNames.forEach((n,idx)=>{
+
+workbook.SheetNames.forEach((name,index)=>{
 let b=document.createElement("button");
-b.className="sheetBtn"+(idx==0?" active":"");
-b.innerText=n;
-b.onclick=()=>loadSheet(n);
+b.className="sheetBtn"+(index==0?" active":"");
+b.innerText=name;
+b.onclick=()=>loadSheet(name);
 sheetBar.appendChild(b);
 });
 }
 
 function loadSheet(name){
-document.querySelectorAll(".sheetBtn").forEach(b=>{
-b.classList.toggle("active",b.innerText===name);
-});
 
-let rows=XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1});
+currentSheet=name;
+
+document.querySelectorAll(".sheetBtn")
+.forEach(b=>b.classList.toggle("active",b.innerText===name));
+
+let rows=XLSX.utils.sheet_to_json(
+workbook.Sheets[name],
+{header:1}
+);
 
 cards=[];
-rows.forEach(r=>{
-if(r[0]&&r[1]) cards.push([r[0],r[1],r[2]||""]);
+
+let header=rows[0]||[];
+
+let apprisIndex=header.findIndex(h=>String(h).toLowerCase()=="appris");
+
+rows.forEach((r,index)=>{
+
+if(index===0)return;
+
+if(r[0]&&r[1]){
+
+cards.push({
+en:r[0],
+fr:r[1],
+ex:r[2]||"",
+row:index
+});
+
+if(apprisIndex>=0 && r[apprisIndex]=="X"){
+learned[name+"_"+index]=true;
+}
+
+}
+
 });
 
 i=0;
@@ -178,17 +194,45 @@ show();
 }
 
 function show(){
+
 front=true;
-frontDiv.innerText=reversed?cards[i][1]:cards[i][0];
+
+frontDiv.innerText=reversed?cards[i].fr:cards[i].en;
 backDiv.innerText="";
 exampleDiv.innerText="";
+
+updateFavButton();
+
 counter.innerText=(i+1)+" / "+cards.length;
+
 autoSpeak();
+}
+
+function updateFavButton(){
+
+let key=currentSheet+"_"+cards[i].row;
+
+if(learned[key])
+favBtn.classList.add("favorite");
+else
+favBtn.classList.remove("favorite");
+}
+
+function toggleFavorite(){
+
+let key=currentSheet+"_"+cards[i].row;
+
+learned[key]=!learned[key];
+
+updateFavButton();
 }
 
 card.onclick=()=>{
 front=!front;
-frontDiv.innerText=front?(reversed?cards[i][1]:cards[i][0]):(reversed?cards[i][0]:cards[i][1]);
+frontDiv.innerText=
+front
+?(reversed?cards[i].fr:cards[i].en)
+:(reversed?cards[i].en:cards[i].fr);
 };
 
 function next(){
@@ -201,16 +245,8 @@ i=(i-1+cards.length)%cards.length;
 show();
 }
 
-function toggleRandom(){
-random=!random;
-randomBtn.classList.toggle("active",random);
-}
-
-function toggleReverse(){
-reversed=!reversed;
-reverseBtn.classList.toggle("active",reversed);
-show();
-}
+function toggleRandom(){random=!random}
+function toggleReverse(){reversed=!reversed;show()}
 
 function speak(){
 let u=new SpeechSynthesisUtterance(frontDiv.innerText);
@@ -221,25 +257,36 @@ speechSynthesis.speak(u);
 function autoSpeak(){setTimeout(speak,120)}
 
 function showExample(){
-exampleDiv.innerText=cards[i][2];
-if(cards[i][2]){
-let u=new SpeechSynthesisUtterance(cards[i][2]);
-u.lang="en-US";
-speechSynthesis.speak(u);
-}
+exampleDiv.innerText=cards[i].ex;
 }
 
-/* swipe */
-let x=0;
-card.addEventListener("touchstart",e=>x=e.touches[0].clientX);
-card.addEventListener("touchend",e=>{
-let d=e.changedTouches[0].clientX-x;
-if(d>60)prev();
-if(d<-60)next();
+function exportExcel(){
+
+let wb=XLSX.utils.book_new();
+
+workbook.SheetNames.forEach(name=>{
+
+let rows=XLSX.utils.sheet_to_json(
+workbook.Sheets[name],
+{header:1}
+);
+
+if(!rows[0].includes("Appris"))
+rows[0].push("Appris");
+
+let apprisIndex=rows[0].indexOf("Appris");
+
+rows.forEach((r,index)=>{
+let key=name+"_"+index;
+if(learned[key]) r[apprisIndex]="X";
 });
 
-if("serviceWorker"in navigator){
-navigator.serviceWorker.register("service-worker.js");
+let ws=XLSX.utils.aoa_to_sheet(rows);
+XLSX.utils.book_append_sheet(wb,ws,name);
+
+});
+
+XLSX.writeFile(wb,"flashcards_appris.xlsx");
 }
 
 </script>
