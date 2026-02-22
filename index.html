@@ -6,11 +6,9 @@
 
 <title>Flashcards</title>
 
-<link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <style>
-
 :root{--main:#6c63ff}
 
 body{
@@ -26,8 +24,6 @@ color:white;
 
 .app{width:100%;max-width:420px;padding:20px}
 
-input{width:100%;margin-bottom:10px}
-
 .sheetBar{
 display:flex;
 gap:8px;
@@ -41,7 +37,6 @@ border-radius:12px;
 background:#ffffff20;
 border:none;
 color:white;
-font-size:13px;
 }
 
 .sheetBtn.active{background:var(--main)}
@@ -56,10 +51,12 @@ display:flex;
 flex-direction:column;
 justify-content:center;
 box-shadow:0 15px 40px rgba(0,0,0,.4);
+cursor:pointer;
+position:relative;
 }
 
 .word{font-size:30px;font-weight:600;color:var(--main)}
-.translation{font-size:22px;margin-top:8px;color:#000}
+.translation{font-size:22px;color:black;margin-top:8px}
 
 .controls,.row{
 display:grid;
@@ -79,11 +76,17 @@ font-size:18px;
 
 .active{background:var(--main)!important}
 
-.example{margin-top:10px;font-size:14px;opacity:.8;min-height:40px}
+.example{margin-top:10px;min-height:40px}
 .counter{text-align:center;margin-top:6px;font-size:13px;opacity:.6}
 
 .hidden{display:none}
 
+.star{
+position:absolute;
+top:12px;
+right:16px;
+font-size:22px;
+}
 </style>
 </head>
 
@@ -96,6 +99,7 @@ font-size:18px;
 <div id="sheetBar" class="sheetBar"></div>
 
 <div id="card" class="card">
+<div id="star" class="star hidden">⭐</div>
 <div id="english" class="word">Charge ton Excel</div>
 <div id="french" class="translation hidden"></div>
 </div>
@@ -112,22 +116,39 @@ font-size:18px;
 <button onclick="showExample()">💬</button>
 </div>
 
+<div class="row">
+<button id="toggleLearnedBtn" onclick="toggleLearned()">👁</button>
+<button id="learnedOnlyBtn" onclick="toggleLearnedOnly()">🎯</button>
+</div>
+
 <div id="example" class="example"></div>
 <div id="counter" class="counter"></div>
 
 </div>
 
 <script>
+let workbook;
+let allCards=[];
+let cards=[];
+let i=0;
 
-let workbook,cards=[],i=0,random=false,reversed=false,front=true;
+let random=false;
+let reversed=false;
+let showLearned=false;
+let learnedOnly=false;
 
 const english=document.getElementById("english");
 const french=document.getElementById("french");
 const example=document.getElementById("example");
 const counter=document.getElementById("counter");
+const star=document.getElementById("star");
+
 const randomBtn=document.getElementById("randomBtn");
 const reverseBtn=document.getElementById("reverseBtn");
+const toggleLearnedBtn=document.getElementById("toggleLearnedBtn");
+const learnedOnlyBtn=document.getElementById("learnedOnlyBtn");
 const sheetBar=document.getElementById("sheetBar");
+const upload=document.getElementById("upload");
 const card=document.getElementById("card");
 
 upload.onchange=e=>{
@@ -152,7 +173,120 @@ sheetBar.appendChild(b);
 }
 
 function loadSheet(name){
-document.querySelectorAll(".sheetBtn").forEach(b=>b.classList.toggle("active",b.innerText===name));
+document.querySelectorAll(".sheetBtn")
+.forEach(b=>b.classList.toggle("active",b.innerText===name));
+
 let rows=XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1});
-cards=[];
-rows.forEach(r=>{if(r[0]&&r[1])cards.push([r[0],r[1],r[2]||""]);});
+
+allCards=[];
+
+rows.forEach(r=>{
+if(!r[0]||!r[1]) return;
+
+let appris=(r[3]||"").toString().toLowerCase();
+let learned=appris==="x"||appris==="✓"||appris==="✔"||appris==="oui";
+
+allCards.push({
+en:r[0],
+fr:r[1],
+ex:r[2]||"",
+learned:learned
+});
+});
+
+applyFilters();
+}
+
+function applyFilters(){
+cards=allCards.filter(c=>{
+if(learnedOnly) return c.learned;
+if(!showLearned && c.learned) return false;
+return true;
+});
+
+i=0;
+update();
+}
+
+function update(){
+if(!cards.length){
+english.innerText="Aucun mot";
+french.classList.add("hidden");
+star.classList.add("hidden");
+return;
+}
+
+let c=cards[i];
+
+english.innerText=reversed?c.fr:c.en;
+french.innerText=reversed?c.en:c.fr;
+french.classList.add("hidden");
+
+example.innerText="";
+counter.innerText=(i+1)+" / "+cards.length;
+
+/* ⭐ affiche si appris */
+if(c.learned){
+star.classList.remove("hidden");
+}else{
+star.classList.add("hidden");
+}
+
+/* 🔊 audio automatique */
+autoSpeak();
+}
+
+function autoSpeak(){
+let text=reversed?cards[i].fr:cards[i].en;
+let u=new SpeechSynthesisUtterance(text);
+u.lang=reversed?"fr-FR":"en-US";
+speechSynthesis.cancel();
+speechSynthesis.speak(u);
+}
+
+card.onclick=()=>{french.classList.toggle("hidden");};
+function speak(){autoSpeak();}
+function next(){i=random?Math.floor(Math.random()*cards.length):(i+1)%cards.length;update();}
+function prev(){i=(i-1+cards.length)%cards.length;update();}
+
+function toggleRandom(){
+random=!random;
+randomBtn.classList.toggle("active",random);
+}
+
+function toggleReverse(){
+reversed=!reversed;
+reverseBtn.classList.toggle("active",reversed);
+update();
+}
+
+function toggleLearned(){
+showLearned=!showLearned;
+toggleLearnedBtn.classList.toggle("active",showLearned);
+learnedOnly=false;
+learnedOnlyBtn.classList.remove("active");
+applyFilters();
+}
+
+function toggleLearnedOnly(){
+learnedOnly=!learnedOnly;
+learnedOnlyBtn.classList.toggle("active",learnedOnly);
+if(learnedOnly){
+showLearned=true;
+toggleLearnedBtn.classList.add("active");
+}
+applyFilters();
+}
+
+function showExample(){
+let phrase=cards[i].ex;
+example.innerText=phrase;
+if(!phrase) return;
+let u=new SpeechSynthesisUtterance(phrase);
+u.lang=reversed?"fr-FR":"en-US";
+speechSynthesis.speak(u);
+}
+</script>
+
+</body>
+</html>
