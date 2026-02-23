@@ -124,6 +124,16 @@ font-size:22px;
 <div id="example" class="example"></div>
 <div id="counter" class="counter"></div>
 
+<div style="margin-top:10px;text-align:center">
+<input 
+id="gotoInput"
+type="number"
+placeholder="Aller au mot n°"
+style="width:120px;padding:8px;border-radius:10px;border:none;text-align:center"
+onkeydown="gotoCard(event)"
+>
+</div>
+
 </div>
 
 <script>
@@ -286,6 +296,19 @@ let u=new SpeechSynthesisUtterance(phrase);
 u.lang=reversed?"fr-FR":"en-US";
 speechSynthesis.speak(u);
 }
+
+function gotoCard(e){
+
+if(e.key !== "Enter") return;
+let n = parseInt(e.target.value);
+if(isNaN(n)) return;
+if(n < 1) n = 1;
+if(n > cards.length) n = cards.length;
+i = n - 1;
+update();
+e.target.value="";
+}
+
 </script>
 
 </body>
