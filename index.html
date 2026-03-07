@@ -119,6 +119,7 @@ font-size:22px;
 <div class="row">
 <button id="toggleLearnedBtn" onclick="toggleLearned()">👁</button>
 <button id="learnedOnlyBtn" onclick="toggleLearnedOnly()">🎯</button>
+<button id="autoBtn" onclick="toggleAuto()">⏱</button>
 </div>
 
 <div id="example" class="example"></div>
@@ -137,6 +138,7 @@ onkeydown="gotoCard(event)"
 </div>
 
 <script>
+
 let workbook;
 let allCards=[];
 let cards=[];
@@ -146,6 +148,10 @@ let random=false;
 let reversed=false;
 let showLearned=false;
 let learnedOnly=false;
+
+let autoMode=false;
+let autoTimer=null;
+let revealTimer=null;
 
 const english=document.getElementById("english");
 const french=document.getElementById("french");
@@ -157,6 +163,8 @@ const randomBtn=document.getElementById("randomBtn");
 const reverseBtn=document.getElementById("reverseBtn");
 const toggleLearnedBtn=document.getElementById("toggleLearnedBtn");
 const learnedOnlyBtn=document.getElementById("learnedOnlyBtn");
+const autoBtn=document.getElementById("autoBtn");
+
 const sheetBar=document.getElementById("sheetBar");
 const upload=document.getElementById("upload");
 const card=document.getElementById("card");
@@ -183,6 +191,7 @@ sheetBar.appendChild(b);
 }
 
 function loadSheet(name){
+
 document.querySelectorAll(".sheetBtn")
 .forEach(b=>b.classList.toggle("active",b.innerText===name));
 
@@ -194,7 +203,12 @@ rows.forEach(r=>{
 if(!r[0]||!r[1]) return;
 
 let appris=(r[3]||"").toString().toLowerCase();
-let learned=appris==="x"||appris==="✓"||appris==="✔"||appris==="oui";
+
+let learned=
+appris==="x"||
+appris==="✓"||
+appris==="✔"||
+appris==="oui";
 
 allCards.push({
 en:r[0],
@@ -208,6 +222,7 @@ applyFilters();
 }
 
 function applyFilters(){
+
 cards=allCards.filter(c=>{
 if(learnedOnly) return c.learned;
 if(!showLearned && c.learned) return false;
@@ -219,6 +234,7 @@ update();
 }
 
 function update(){
+
 if(!cards.length){
 english.innerText="Aucun mot";
 french.classList.add("hidden");
@@ -235,14 +251,12 @@ french.classList.add("hidden");
 example.innerText="";
 counter.innerText=(i+1)+" / "+cards.length;
 
-/* ⭐ affiche si appris */
 if(c.learned){
 star.classList.remove("hidden");
 }else{
 star.classList.add("hidden");
 }
 
-/* 🔊 audio automatique */
 autoSpeak();
 }
 
@@ -254,10 +268,21 @@ speechSynthesis.cancel();
 speechSynthesis.speak(u);
 }
 
-card.onclick=()=>{french.classList.toggle("hidden");};
+card.onclick=()=>{
+french.classList.toggle("hidden");
+};
+
 function speak(){autoSpeak();}
-function next(){i=random?Math.floor(Math.random()*cards.length):(i+1)%cards.length;update();}
-function prev(){i=(i-1+cards.length)%cards.length;update();}
+
+function next(){
+i=random?Math.floor(Math.random()*cards.length):(i+1)%cards.length;
+update();
+}
+
+function prev(){
+i=(i-1+cards.length)%cards.length;
+update();
+}
 
 function toggleRandom(){
 random=!random;
@@ -291,7 +316,9 @@ applyFilters();
 function showExample(){
 let phrase=cards[i].ex;
 example.innerText=phrase;
+
 if(!phrase) return;
+
 let u=new SpeechSynthesisUtterance(phrase);
 u.lang=reversed?"fr-FR":"en-US";
 speechSynthesis.speak(u);
@@ -299,14 +326,53 @@ speechSynthesis.speak(u);
 
 function gotoCard(e){
 
-if(e.key !== "Enter") return;
-let n = parseInt(e.target.value);
+if(e.key!=="Enter") return;
+
+let n=parseInt(e.target.value);
+
 if(isNaN(n)) return;
-if(n < 1) n = 1;
-if(n > cards.length) n = cards.length;
-i = n - 1;
+
+if(n<1)n=1;
+if(n>cards.length)n=cards.length;
+
+i=n-1;
 update();
+
 e.target.value="";
+}
+
+/* AUTOPLAY INTELLIGENT */
+
+function toggleAuto(){
+
+autoMode=!autoMode;
+autoBtn.classList.toggle("active",autoMode);
+
+if(autoMode){
+
+startAutoCycle();
+
+autoTimer=setInterval(()=>{
+next();
+startAutoCycle();
+},6000);
+
+}else{
+
+clearInterval(autoTimer);
+clearTimeout(revealTimer);
+
+}
+}
+
+function startAutoCycle(){
+
+clearTimeout(revealTimer);
+
+revealTimer=setTimeout(()=>{
+french.classList.remove("hidden");
+},3000);
+
 }
 
 </script>
