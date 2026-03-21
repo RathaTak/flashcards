@@ -355,7 +355,7 @@ startAutoCycle();
 autoTimer=setInterval(()=>{
 next();
 startAutoCycle();
-},10000);
+},12000);
 
 }else{
 
@@ -371,6 +371,7 @@ clearTimeout(revealTimer);
 
 revealTimer=setTimeout(()=>{
 french.classList.remove("hidden");
+showExample();
 },5000);
 
 }
