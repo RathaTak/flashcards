@@ -103,6 +103,7 @@ font-size:22px;
 <div id="english" class="word">Charge ton Excel</div>
 <div id="french" class="translation hidden"></div>
 </div>
+<div id="example" class="example"></div>
 
 <div class="controls">
 <button onclick="prev()">⬅</button>
@@ -119,11 +120,12 @@ font-size:22px;
 <div class="row">
 <button id="toggleLearnedBtn" onclick="toggleLearned()">👁</button>
 <button id="learnedOnlyBtn" onclick="toggleLearnedOnly()">🎯</button>
-<button id="autoBtn" onclick="toggleAuto()">⏱</button>
 </div>
 
-<div id="example" class="example"></div>
-<div id="counter" class="counter"></div>
+<div class="row">
+<button id="autoBtn" onclick="toggleAuto()">⏱</button>
+<button id="fastAutoBtn" onclick="toggleFastAuto()">⚡</button>
+</div>
 
 <div style="margin-top:10px;text-align:center">
 <input 
@@ -134,6 +136,10 @@ style="width:120px;padding:8px;border-radius:10px;border:none;text-align:center"
 onkeydown="gotoCard(event)"
 >
 </div>
+
+<div id="counter" class="counter"></div>
+
+
 
 </div>
 
@@ -153,6 +159,10 @@ let autoMode=false;
 let autoTimer=null;
 let revealTimer=null;
 
+let fastAutoMode=false;
+let fastTimer=null;
+let fastReveal=null;
+
 const english=document.getElementById("english");
 const french=document.getElementById("french");
 const example=document.getElementById("example");
@@ -164,6 +174,7 @@ const reverseBtn=document.getElementById("reverseBtn");
 const toggleLearnedBtn=document.getElementById("toggleLearnedBtn");
 const learnedOnlyBtn=document.getElementById("learnedOnlyBtn");
 const autoBtn=document.getElementById("autoBtn");
+const fastAutoBtn=document.getElementById("fastAutoBtn");
 
 const sheetBar=document.getElementById("sheetBar");
 const upload=document.getElementById("upload");
@@ -348,6 +359,11 @@ function toggleAuto(){
 autoMode=!autoMode;
 autoBtn.classList.toggle("active",autoMode);
 
+/* coupe l'autre mode si actif */
+if(fastAutoMode && autoMode){
+toggleFastAuto();
+}
+
 if(autoMode){
 
 startAutoCycle();
@@ -376,6 +392,48 @@ revealTimer=setTimeout(()=>{
 showExample();
 },9000);
 
+}
+
+/* AUTOPLAY INTELLIGENT FAST*/
+
+function toggleFastAuto(){
+
+fastAutoMode=!fastAutoMode;
+fastAutoBtn.classList.toggle("active",fastAutoMode);
+
+/* coupe l'autre mode si actif */
+if(fastAutoMode && autoMode){
+toggleAuto();
+}
+
+if(fastAutoMode){
+
+startFastCycle();
+
+fastTimer=setInterval(()=>{
+next();
+startFastCycle();
+},5000);
+
+}else{
+
+clearInterval(fastTimer);
+clearTimeout(fastReveal);
+
+}
+}
+
+function startFastCycle(){
+
+clearTimeout(fastReveal);
+
+/* reset affichage */
+french.classList.add("hidden");
+
+/* afficher traduction après 2s */
+fastReveal=setTimeout(()=>{
+french.classList.remove("hidden");
+},2500);
 }
 
 </script>
